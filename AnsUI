@@ -241,3 +241,5 @@ function AnsUI:CreateWindow(titleText)
     end
     return PageLib
 end
+
+return AnsUI
