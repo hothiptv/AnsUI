@@ -1,0 +1,243 @@
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+
+local AnsUI = {
+    Config = {ThemeColor = Color3.fromRGB(255, 0, 80), Transparent = false},
+    File = "AnsUI_Ultimate.json",
+    ElementsCount = 0
+}
+
+local ParentUI = (game:GetService("RunService"):IsStudio()) and Players.LocalPlayer:WaitForChild("PlayerGui") or CoreGui
+
+-- Hàm tạo Animation nảy (Bounce)
+local function PopEffect(obj, delayTime)
+    obj.Size = UDim2.new(0, 0, 0, 0)
+    task.delay(delayTime or 0, function()
+        TweenService:Create(obj, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Size = UDim2.new(1, -10, 0, 35)}):Play()
+    end)
+end
+
+-- Hàm kéo thả nâng cao
+local function MakeDraggable(dragPart, mainPart, opacityEffect)
+    local dragging, dragInput, dragStart, startPos
+    dragPart.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainPart.Position
+            if opacityEffect then TweenService:Create(mainPart, TweenInfo.new(0.3), {GroupTransparency = 0.5}):Play() end
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+            local delta = input.Position - dragStart
+            mainPart.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+            if opacityEffect then TweenService:Create(mainPart, TweenInfo.new(0.3), {GroupTransparency = 0}):Play() end
+        end
+    end)
+end
+
+function AnsUI:CreateWindow(titleText)
+    local ScreenGui = Instance.new("ScreenGui", ParentUI)
+    ScreenGui.Name = "AnsUI_Ultimate"
+    
+    -- CanvasGroup để hỗ trợ hiệu ứng mờ toàn bộ UI
+    local Canvas = Instance.new("CanvasGroup", ScreenGui)
+    Canvas.Size = UDim2.new(0, 550, 0, 400)
+    Canvas.Position = UDim2.new(0.5, -275, 0.5, -200)
+    Canvas.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Canvas.BorderSizePixel = 2
+    Canvas.BorderColor3 = self.Config.ThemeColor
+    Instance.new("UICorner", Canvas)
+
+    -- Header & Control Buttons
+    local Header = Instance.new("Frame", Canvas)
+    Header.Size = UDim2.new(1, 0, 0, 40)
+    Header.BackgroundTransparency = 1
+    MakeDraggable(Header, Canvas, false)
+
+    local Title = Instance.new("TextLabel", Header)
+    Title.Text = "  " .. titleText .. " <font color='#AAAAAA'>by Anscript VN</font>"
+    Title.RichText = true
+    Title.Size = UDim2.new(1, 0, 1, 0)
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 14
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+
+    local Controls = Instance.new("Frame", Header)
+    Controls.Size = UDim2.new(0, 100, 1, 0)
+    Controls.Position = UDim2.new(1, -110, 0, 0)
+    Controls.BackgroundTransparency = 1
+    local ControlList = Instance.new("UIListLayout", Controls)
+    ControlList.FillDirection = Enum.FillDirection.Horizontal
+    ControlList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    ControlList.VerticalAlignment = Enum.VerticalAlignment.Center
+    ControlList.Padding = UDim.new(0, 8)
+
+    local function CreateTopBtn(txt, color, func)
+        local b = Instance.new("TextButton", Controls)
+        b.Size = UDim2.new(0, 25, 0, 25)
+        b.BackgroundColor3 = color
+        b.Text = txt
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        b.Font = Enum.Font.GothamBold
+        Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+        b.MouseButton1Click:Connect(func)
+    end
+
+    -- X (Ẩn), O (Tắt), G (Ghost)
+    CreateTopBtn("X", Color3.fromRGB(255, 50, 50), function() 
+        TweenService:Create(Canvas, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -275, -1, 0)}):Play()
+    end)
+    CreateTopBtn("O", Color3.fromRGB(255, 150, 0), function() ScreenGui:Destroy() end)
+    CreateTopBtn("G", Color3.fromRGB(100, 100, 100), function()
+        self.Config.Transparent = not self.Config.Transparent
+        TweenService:Create(Canvas, TweenInfo.new(0.3), {GroupTransparency = self.Config.Transparent and 0.5 or 0}):Play()
+    end)
+
+    -- Container 2 Cột
+    local Container = Instance.new("Frame", Canvas)
+    Container.Size = UDim2.new(1, -20, 1, -130)
+    Container.Position = UDim2.new(0, 10, 0, 50)
+    Container.BackgroundTransparency = 1
+
+    -- Tab Bar (Dưới)
+    local TabBar = Instance.new("Frame", Canvas)
+    TabBar.Size = UDim2.new(1, 0, 0, 60)
+    TabBar.Position = UDim2.new(0, 0, 1, -80)
+    TabBar.BackgroundTransparency = 1
+    local TabList = Instance.new("UIListLayout", TabBar)
+    TabList.FillDirection = Enum.FillDirection.Horizontal
+    TabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    TabList.Padding = UDim.new(0, 15)
+
+    -- Thanh trắng di chuyển dưới cùng
+    local DragBar = Instance.new("Frame", Canvas)
+    DragBar.Size = UDim2.new(0, 150, 0, 4)
+    DragBar.Position = UDim2.new(0.5, -75, 1, -10)
+    DragBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", DragBar)
+    MakeDraggable(DragBar, Canvas, true)
+
+    -- Nút Toggle UI rời (Dưới nút Roblox)
+    local MainToggle = Instance.new("TextButton", ScreenGui)
+    MainToggle.Size = UDim2.new(0, 45, 0, 45)
+    MainToggle.Position = UDim2.new(0, 10, 0, 60)
+    MainToggle.BackgroundColor3 = self.Config.ThemeColor
+    MainToggle.Text = "Ans"
+    MainToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MainToggle.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", MainToggle).CornerRadius = UDim.new(0, 10)
+    MakeDraggable(MainToggle, MainToggle, false)
+
+    MainToggle.MouseButton1Click:Connect(function()
+        if Canvas.Position.Y.Scale < 0 then
+            Canvas.Position = UDim2.new(0.5, -275, -1, 0)
+            TweenService:Create(Canvas, TweenInfo.new(0.6, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -275, 0.5, -200)}):Play()
+        else
+            TweenService:Create(Canvas, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -275, -1, 0)}):Play()
+        end
+    end)
+
+    local PageLib = {}
+    function PageLib:CreatePage(tabName)
+        local PageFrame = Instance.new("Frame", Container)
+        PageFrame.Size = UDim2.new(1, 0, 1, 0)
+        PageFrame.BackgroundTransparency = 1
+        PageFrame.Visible = false
+
+        -- Chia 2 cột
+        local LeftCol = Instance.new("ScrollingFrame", PageFrame)
+        LeftCol.Size = UDim2.new(0.5, -5, 1, 0)
+        LeftCol.BackgroundTransparency = 1
+        LeftCol.ScrollBarThickness = 0
+        local LList = Instance.new("UIListLayout", LeftCol) LList.Padding = UDim.new(0, 10)
+
+        local RightCol = Instance.new("ScrollingFrame", PageFrame)
+        RightCol.Size = UDim2.new(0.5, -5, 1, 5)
+        RightCol.Position = UDim2.new(0.5, 5, 0, 0)
+        RightCol.BackgroundTransparency = 1
+        RightCol.ScrollBarThickness = 0
+        local RList = Instance.new("UIListLayout", RightCol) RList.Padding = UDim.new(0, 10)
+
+        -- Tab Button (Square)
+        local TabBtn = Instance.new("TextButton", TabBar)
+        TabBtn.Size = UDim2.new(0, 70, 0, 35)
+        TabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        TabBtn.Text = tabName
+        TabBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+        TabBtn.Font = Enum.Font.GothamBold
+        Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 8)
+
+        TabBtn.MouseButton1Click:Connect(function()
+            for _, v in pairs(Container:GetChildren()) do v.Visible = false end
+            PageFrame.Visible = true
+            -- Animation nảy cho các phần tử bên trong
+            local i = 0
+            for _, item in pairs(LeftCol:GetChildren()) do if item:IsA("Frame") or item:IsA("TextButton") then PopEffect(item, i*0.05) i=i+1 end end
+            for _, item in pairs(RightCol:GetChildren()) do if item:IsA("Frame") or item:IsA("TextButton") then PopEffect(item, i*0.05) i=i+1 end end
+        end)
+
+        if #TabBar:GetChildren() == 2 then PageFrame.Visible = true end
+
+        local Elements = {}
+        local toggleCount = 0
+
+        function Elements:CreateToggle(name, configID, callback)
+            toggleCount = toggleCount + 1
+            local TargetCol = (toggleCount % 2 == 1) and LeftCol or RightCol
+            
+            local Tgl = Instance.new("TextButton", TargetCol)
+            Tgl.Size = UDim2.new(1, -10, 0, 35)
+            Tgl.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            Tgl.Text = "  " .. name
+            Tgl.TextColor3 = Color3.fromRGB(200, 200, 200)
+            Tgl.Font = Enum.Font.Gotham
+            Tgl.TextXAlignment = Enum.TextXAlignment.Left
+            Instance.new("UICorner", Tgl)
+
+            local Status = Instance.new("Frame", Tgl)
+            Status.Size = UDim2.new(0, 15, 0, 15)
+            Status.Position = UDim2.new(1, -25, 0.5, -7)
+            Status.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+            Instance.new("UICorner", Status).CornerRadius = UDim.new(1, 0)
+
+            local state = false
+            Tgl.MouseButton1Click:Connect(function()
+                state = not state
+                local col = state and AnsUI.Config.ThemeColor or Color3.fromRGB(100, 100, 100)
+                TweenService:Create(Status, TweenInfo.new(0.3), {BackgroundColor3 = col}):Play()
+                callback(state)
+                -- Nảy nhẹ khi bấm
+                Tgl:TweenSize(UDim2.new(1, -5, 0, 38), "Out", "Quad", 0.1, true, function()
+                    Tgl:TweenSize(UDim2.new(1, -10, 0, 35), "Out", "Quad", 0.1)
+                end)
+            end)
+        end
+
+        function Elements:CreateButton(name, callback)
+            toggleCount = toggleCount + 1
+            local TargetCol = (toggleCount % 2 == 1) and LeftCol or RightCol
+            local Btn = Instance.new("TextButton", TargetCol)
+            Btn.Size = UDim2.new(1, -10, 0, 35)
+            Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            Btn.Text = name
+            Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Instance.new("UICorner", Btn)
+            Btn.MouseButton1Click:Connect(callback)
+        end
+
+        return Elements
+    end
+    return PageLib
+end
